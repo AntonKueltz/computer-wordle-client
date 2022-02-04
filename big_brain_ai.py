@@ -12,20 +12,24 @@ class Solver:
         self.length = length
         self.candidates = [w for w in computer_wordle.wordlist if len(w) == length]
 
-    def partial_matches(self, known_values: List[Tuple[int, str]]):
+        self.green_letters: List[Tuple[int, str]] = []
+        self.gray_letters: Set[str] = set()
+        self.yellow_letters: Dict[str, List[int]] = defaultdict(list)
+
+    def partial_matches(self):
         matches = []
 
         for word in self.candidates:
-            if all([word[i] == c for (i, c) in known_values]):
+            if all([word[i] == c for (i, c) in self.green_letters]):
                 matches.append(word)
 
         self.candidates = matches
 
-    def known_letters_at_different_index(self, known_letters: Dict[str, List[int]]):
+    def known_letters_at_different_index(self):
         matches = []
 
         for word in self.candidates:
-            for letter, indices in known_letters.items():
+            for letter, indices in self.yellow_letters.items():
                 if letter not in word:
                     break
                 if any([word[i] == letter for i in indices]):
@@ -35,14 +39,37 @@ class Solver:
 
         self.candidates = matches
 
-    def remove_known_invalid_words(self, known_invalid_letters: Set[str]):
+    def remove_known_invalid_words(self):
         matches = []
 
         for word in self.candidates:
-            if not any([letter in word for letter in known_invalid_letters]):
+            if not any([letter in word for letter in self.gray_letters]):
                 matches.append(word)
 
         self.candidates = matches
+
+    def update_with_round_results(self, guess_word: str, guess_response: str):
+        self.candidates.remove(guess_word)
+
+        for i, clue in enumerate(guess_response):
+            letter = guess_word[i]
+
+            if clue == computer_wordle.GRAY:
+                if (
+                        letter not in self.yellow_letters and
+                        letter not in {c for (_, c) in self.green_letters}
+                ):
+                    self.gray_letters.add(letter)
+
+            if clue == computer_wordle.GREEN:
+                self.green_letters.append((i, letter))
+                if letter in self.yellow_letters:
+                    del self.yellow_letters[letter]
+                if letter in self.gray_letters:
+                    self.gray_letters.remove(letter)
+
+            if clue == computer_wordle.YELLOW:
+                self.yellow_letters[letter].append(i)
 
     def top_frequencies(self, length: int) -> List[str]:
         words = [w for w in self.candidates if len(w) == length]
@@ -61,10 +88,6 @@ def main():
     while game.current_hint() is not None:
         solver = Solver(len(game.current_hint()))
 
-        known_letters: List[Tuple[int, str]] = []
-        invalid_letters: Set[str] = set()
-        partial_matches: Dict[str, List[int]] = defaultdict(list)
-
         while True:
             guess_word = random.choice(solver.candidates)
             response = game.guess(guess_word)
@@ -76,29 +99,10 @@ def main():
                 print(f"SOLVED! Target word = {guess_word}")
                 break
 
-            for i, clue in enumerate(guess_response):
-                letter = guess_word[i]
-
-                if clue == computer_wordle.GRAY:
-                    if (
-                            letter not in partial_matches and
-                            letter not in {c for (_, c) in known_letters}
-                    ):
-                        invalid_letters.add(letter)
-
-                if clue == computer_wordle.GREEN:
-                    known_letters.append((i, letter))
-                    if letter in partial_matches:
-                        del partial_matches[letter]
-                    if letter in invalid_letters:
-                        invalid_letters.remove(letter)
-
-                if clue == computer_wordle.YELLOW:
-                    partial_matches[letter].append(i)
-
-            solver.remove_known_invalid_words(invalid_letters)
-            solver.partial_matches(known_letters)
-            solver.known_letters_at_different_index(partial_matches)
+            solver.update_with_round_results(guess_word, guess_response)
+            solver.remove_known_invalid_words()
+            solver.partial_matches()
+            solver.known_letters_at_different_index()
 
     webbrowser.open(game.url())
 
