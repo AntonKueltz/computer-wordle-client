@@ -71,15 +71,27 @@ class Solver:
             if clue == computer_wordle.YELLOW:
                 self.yellow_letters[letter].append(i)
 
-    def top_frequencies(self, length: int) -> List[str]:
-        words = [w for w in self.candidates if len(w) == length]
+    def frequencies(self) -> Counter:
+        words = [w for w in self.candidates if len(w) == self.length]
         counter = Counter()
 
         for word in words:
             for letter in word:
                 counter[letter] += 1
 
-        return [letter for (letter, count) in counter.most_common()]
+        return counter
+
+    def highest_score_word(self) -> str:
+        frequencies = self.frequencies()
+        best_word, best_score = None, 0
+
+        for word in self.candidates:
+            score = sum([frequencies[c] for c in set(word)])
+            if score > best_score:
+                best_word = word
+                best_score = score
+
+        return best_word
 
 
 def main():
@@ -89,7 +101,7 @@ def main():
         solver = Solver(len(game.current_hint()))
 
         while True:
-            guess_word = random.choice(solver.candidates)
+            guess_word = solver.highest_score_word()
             response = game.guess(guess_word)
             guess_response = response['guess_response']
             print(f"{guess_word} -> {guess_response}")
