@@ -71,10 +71,9 @@ class Solver:
                 self.yellow_letters[letter].append(i)
 
     def frequencies(self) -> Counter:
-        words = [w for w in self.candidates if len(w) == self.length]
         counter = Counter()
 
-        for word in words:
+        for word in self.candidates:
             for letter in word:
                 counter[letter] += 1
 
