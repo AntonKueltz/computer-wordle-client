@@ -2,7 +2,6 @@
 
 from collections import Counter, defaultdict
 import computer_wordle
-import random
 from typing import Dict, List, Set, Tuple
 import webbrowser
 
